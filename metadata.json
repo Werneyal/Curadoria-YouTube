@@ -1,0 +1,6 @@
+{
+  "name": "Curadoria de Vídeos do YouTube",
+  "description": "Um web app elegante para organizar e fazer curadoria de canais e vídeos do YouTube em grupos customizados, com extração automática de metadados.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

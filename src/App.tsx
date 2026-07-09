@@ -52,6 +52,16 @@ export default function App() {
     return "dark"; // Default to dark mode
   });
 
+  const [videoSortMode, setVideoSortMode] = useState<"custom" | "auto">(() => {
+    const saved = localStorage.getItem("curatube-sort-mode");
+    if (saved === "custom" || saved === "auto") return saved;
+    return "custom"; // Default to custom drag and drop
+  });
+
+  useEffect(() => {
+    localStorage.setItem("curatube-sort-mode", videoSortMode);
+  }, [videoSortMode]);
+
   useEffect(() => {
     localStorage.setItem("curatube-theme", theme);
     const root = window.document.documentElement;
@@ -200,6 +210,48 @@ export default function App() {
     saveState(groups, updatedCards);
   };
 
+  const handleDragAndDropCard = (draggedCardId: string, targetCardId: string | null, targetGroupId: string) => {
+    const cardToMove = cards.find((c) => c.id === draggedCardId);
+    if (!cardToMove) return;
+
+    const draggedIndex = cards.findIndex((c) => c.id === draggedCardId);
+    const targetIndex = targetCardId ? cards.findIndex((c) => c.id === targetCardId) : -1;
+
+    let updatedCards = cards.filter((c) => c.id !== draggedCardId);
+    const updatedCard = { ...cardToMove, groupId: targetGroupId };
+
+    if (targetCardId && targetIndex !== -1) {
+      const newTargetIndex = updatedCards.findIndex((c) => c.id === targetCardId);
+      if (newTargetIndex !== -1) {
+        if (draggedIndex < targetIndex) {
+          // Dragged from left/above to right/below (forward in array): insert after the target card
+          updatedCards.splice(newTargetIndex + 1, 0, updatedCard);
+        } else {
+          // Dragged from right/below to left/above (backward in array): insert before the target card
+          updatedCards.splice(newTargetIndex, 0, updatedCard);
+        }
+      } else {
+        updatedCards.push(updatedCard);
+      }
+    } else {
+      // Dragged onto section background / empty space: append to end of that group
+      const targetGroupCardIndexes = updatedCards
+        .map((c, idx) => (c.groupId === targetGroupId ? idx : -1))
+        .filter((idx) => idx !== -1);
+
+      if (targetGroupCardIndexes.length > 0) {
+        const lastIndex = targetGroupCardIndexes[targetGroupCardIndexes.length - 1];
+        updatedCards.splice(lastIndex + 1, 0, updatedCard);
+      } else {
+        updatedCards.push(updatedCard);
+      }
+    }
+
+    setVideoSortMode("custom");
+    setCards(updatedCards);
+    saveState(groups, updatedCards);
+  };
+
   // 6. Backup Handlers
   const handleImportBackup = (
     importedGroups: Group[],
@@ -333,6 +385,8 @@ export default function App() {
           }}
           totalCardsCount={cards.length}
           filteredCardsCount={filteredCards.length}
+          videoSortMode={videoSortMode}
+          onVideoSortModeChange={setVideoSortMode}
         />
 
         {/* Curation Groups & Video Cards Grid Layout */}
@@ -377,9 +431,9 @@ export default function App() {
                 return true;
               })
               .map((group, idx) => {
-                const groupCards = filteredCards
-                  .filter((card) => card.groupId === group.id)
-                  .sort((a, b) => {
+                const groupCards = filteredCards.filter((card) => card.groupId === group.id);
+                if (videoSortMode === "auto") {
+                  groupCards.sort((a, b) => {
                     // 1. Favoritados (gostei) primeiro
                     if (a.isLiked !== b.isLiked) {
                       return a.isLiked ? -1 : 1;
@@ -391,6 +445,7 @@ export default function App() {
                     // 3. Estabilidade de data (mais recente primeiro)
                     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                   });
+                }
                 return (
                   <GroupSection
                     key={group.id}
@@ -405,6 +460,8 @@ export default function App() {
                     onUpdateCard={handleUpdateCard}
                     onDeleteCard={handleDeleteCard}
                     onEditCardClick={setActiveEditCard}
+                    isDraggable={videoSortMode === "custom"}
+                    onDragAndDropCard={handleDragAndDropCard}
                   />
                 );
               })

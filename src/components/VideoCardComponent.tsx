@@ -10,7 +10,8 @@ import {
   ExternalLink,
   Check,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  GripVertical
 } from "lucide-react";
 import { VideoCard } from "../types";
 import { CARD_COLORS, ColorOption } from "../utils";
@@ -22,6 +23,11 @@ interface VideoCardComponentProps {
   onUpdateCard: (updatedCard: VideoCard) => void;
   onDeleteCard: (id: string) => void;
   onEditClick: (card: VideoCard) => void;
+  isDraggable?: boolean;
+  onDragStart?: (cardId: string) => void;
+  onDragEnd?: () => void;
+  onDragOver?: (cardId: string) => void;
+  onDropCard?: (draggedId: string, targetId: string) => void;
 }
 
 export default function VideoCardComponent({
@@ -30,11 +36,18 @@ export default function VideoCardComponent({
   onUpdateCard,
   onDeleteCard,
   onEditClick,
+  isDraggable = false,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDropCard,
 }: VideoCardComponentProps) {
   const [showNotes, setShowNotes] = useState(false);
   const [notesText, setNotesText] = useState(card.notes);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Find active color scheme configuration
   const activeColor = CARD_COLORS.find(c => c.id === card.color) || CARD_COLORS[0];
@@ -78,6 +91,49 @@ export default function VideoCardComponent({
     card.color === "rose" ? "border-l-rose-500" :
     card.color === "purple" ? "border-l-purple-500" : "border-l-slate-500";
 
+  const handleDragStartLocal = (e: React.DragEvent) => {
+    if (!isDraggable) return;
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", card.id);
+    if (onDragStart) {
+      onDragStart(card.id);
+    }
+  };
+
+  const handleDragEndLocal = () => {
+    setIsDragging(false);
+    if (onDragEnd) {
+      onDragEnd();
+    }
+  };
+
+  const handleDragOverLocal = (e: React.DragEvent) => {
+    if (!isDraggable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+    if (onDragOver) {
+      onDragOver(card.id);
+    }
+  };
+
+  const handleDragLeaveLocal = (e: React.DragEvent) => {
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDropLocal = (e: React.DragEvent) => {
+    if (!isDraggable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (onDropCard && draggedId && draggedId !== card.id) {
+      onDropCard(draggedId, card.id);
+    }
+  };
+
   return (
     <motion.div
       layout
@@ -86,7 +142,19 @@ export default function VideoCardComponent({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className={`relative flex flex-col h-full rounded-lg border ${activeColor.borderClass} ${activeColor.bgClass} transition-all duration-300 shadow-sm hover:shadow-md border-l-4 ${leftBorderColor} overflow-hidden group ${className || ""}`}
+      draggable={isDraggable}
+      onDragStart={handleDragStartLocal}
+      onDragEnd={handleDragEndLocal}
+      onDragOver={handleDragOverLocal}
+      onDragLeave={handleDragLeaveLocal}
+      onDrop={handleDropLocal}
+      className={`relative flex flex-col h-full rounded-lg border transition-all duration-300 shadow-sm hover:shadow-md border-l-4 ${leftBorderColor} overflow-hidden group ${className || ""} ${
+        activeColor.borderClass
+      } ${activeColor.bgClass} ${
+        isDragging ? "opacity-40 scale-95" : ""
+      } ${
+        isDragOver ? "ring-2 ring-red-500 border-t-red-500 scale-[0.98]" : ""
+      }`}
     >
       {/* Video Thumbnail Section */}
       <div className="relative aspect-video w-full overflow-hidden bg-black group">
@@ -95,6 +163,7 @@ export default function VideoCardComponent({
           alt={card.title}
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-100"
+          draggable="false"
         />
         {/* Watch overlay */}
         <a
@@ -103,6 +172,7 @@ export default function VideoCardComponent({
           rel="noopener noreferrer"
           className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           id={`link-watch-${card.id}`}
+          draggable="false"
         >
           <span className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white font-semibold px-2.5 py-1.5 rounded shadow text-[11px] transition-colors cursor-pointer">
             Assistir no YouTube
@@ -116,9 +186,19 @@ export default function VideoCardComponent({
         <div>
           {/* Channel Name Badge */}
           <div className="flex items-center justify-between gap-1.5 mb-1">
-            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${activeColor.badgeClass}`}>
-              {card.channelName}
-            </span>
+            <div className="flex items-center gap-1 shrink-0">
+              {isDraggable && (
+                <div 
+                  className="p-0.5 text-slate-400 dark:text-slate-500 cursor-grab active:cursor-grabbing hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                  title="Clique e arraste para reordenar"
+                >
+                  <GripVertical className="h-3 w-3" />
+                </div>
+              )}
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${activeColor.badgeClass}`}>
+                {card.channelName}
+              </span>
+            </div>
             <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
               {new Date(card.createdAt).toLocaleDateString("pt-BR")}
             </span>
@@ -126,7 +206,7 @@ export default function VideoCardComponent({
 
           {/* Title */}
           <h4 className="font-sans font-bold text-xs leading-snug text-slate-900 dark:text-white mb-1 line-clamp-2 hover:text-red-500 transition-colors">
-            <a href={card.url} target="_blank" rel="noopener noreferrer">
+            <a href={card.url} target="_blank" rel="noopener noreferrer" draggable="false">
               {card.title}
             </a>
           </h4>

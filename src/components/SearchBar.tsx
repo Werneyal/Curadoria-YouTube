@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { Search, SlidersHorizontal, RefreshCw, ArrowUpDown } from "lucide-react";
 import { Group } from "../types";
 
 interface SearchBarProps {
@@ -11,6 +11,8 @@ interface SearchBarProps {
   onClearFilters: () => void;
   totalCardsCount: number;
   filteredCardsCount: number;
+  videoSortMode: "custom" | "auto";
+  onVideoSortModeChange: (mode: "custom" | "auto") => void;
 }
 
 export default function SearchBar({
@@ -22,6 +24,8 @@ export default function SearchBar({
   onClearFilters,
   totalCardsCount,
   filteredCardsCount,
+  videoSortMode,
+  onVideoSortModeChange,
 }: SearchBarProps) {
   const hasActiveFilters = searchQuery !== "" || selectedGroupId !== "all";
 
@@ -49,6 +53,31 @@ export default function SearchBar({
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
               <SlidersHorizontal className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+
+        {/* Card Sort Mode Dropdown */}
+        <div className="relative flex-1 md:max-w-[220px]">
+          <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+            Organização dos Cards
+          </label>
+          <div className="relative">
+            <select
+              value={videoSortMode}
+              onChange={(e) => onVideoSortModeChange(e.target.value as "custom" | "auto")}
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium cursor-pointer appearance-none"
+              id="search-sort-select"
+            >
+              <option value="custom" className="bg-white dark:bg-[#334155] text-slate-800 dark:text-slate-200">
+                ↕️ Personalizada (Arrastar)
+              </option>
+              <option value="auto" className="bg-white dark:bg-[#334155] text-slate-800 dark:text-slate-200">
+                ⭐ Automática (Favoritos & Nota)
+              </option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+              <ArrowUpDown className="h-4 w-4" />
             </div>
           </div>
         </div>

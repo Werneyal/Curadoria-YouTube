@@ -25,6 +25,8 @@ interface GroupSectionProps {
   onUpdateCard: (updatedCard: VideoCard) => void;
   onDeleteCard: (id: string) => void;
   onEditCardClick: (card: VideoCard) => void;
+  isDraggable?: boolean;
+  onDragAndDropCard?: (draggedCardId: string, targetCardId: string | null, targetGroupId: string) => void;
 }
 
 export default function GroupSection({
@@ -39,8 +41,11 @@ export default function GroupSection({
   onUpdateCard,
   onDeleteCard,
   onEditCardClick,
+  isDraggable = false,
+  onDragAndDropCard,
 }: GroupSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSectionDragOver, setIsSectionDragOver] = useState(false);
 
   const hasMoreCards = cards.length > 2;
   const displayedCards = isExpanded ? cards : cards.slice(0, 5);
@@ -52,6 +57,26 @@ export default function GroupSection({
     if (index === 4) return "hidden xl:block";
     return "";
   };
+  const handleGroupDragOver = (e: React.DragEvent) => {
+    if (!isDraggable) return;
+    e.preventDefault();
+    setIsSectionDragOver(true);
+  };
+
+  const handleGroupDragLeave = () => {
+    setIsSectionDragOver(false);
+  };
+
+  const handleGroupDrop = (e: React.DragEvent) => {
+    if (!isDraggable) return;
+    e.preventDefault();
+    setIsSectionDragOver(false);
+    const draggedCardId = e.dataTransfer.getData("text/plain");
+    if (draggedCardId && onDragAndDropCard) {
+      onDragAndDropCard(draggedCardId, null, group.id);
+    }
+  };
+
   return (
     <motion.section
       layout
@@ -60,7 +85,12 @@ export default function GroupSection({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 100, damping: 15 }}
-      className="bg-white dark:bg-[#334155]/50 border border-slate-200 dark:border-white/10 rounded-xl p-6 shadow-lg transition-shadow"
+      onDragOver={handleGroupDragOver}
+      onDragLeave={handleGroupDragLeave}
+      onDrop={handleGroupDrop}
+      className={`bg-white dark:bg-[#334155]/50 border border-slate-200 dark:border-white/10 rounded-xl p-6 shadow-lg transition-all duration-300 ${
+        isSectionDragOver ? "ring-2 ring-red-500/50 bg-red-500/[0.03] dark:bg-red-500/[0.02] scale-[1.005] shadow-xl" : ""
+      }`}
     >
       {/* Group Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 mb-6 border-b border-slate-100 dark:border-white/5">
@@ -188,6 +218,12 @@ export default function GroupSection({
                     onUpdateCard={onUpdateCard}
                     onDeleteCard={onDeleteCard}
                     onEditClick={onEditCardClick}
+                    isDraggable={isDraggable}
+                    onDropCard={(draggedId, targetId) => {
+                      if (onDragAndDropCard) {
+                        onDragAndDropCard(draggedId, targetId, group.id);
+                      }
+                    }}
                   />
                 ))}
               </AnimatePresence>

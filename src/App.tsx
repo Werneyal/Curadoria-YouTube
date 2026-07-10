@@ -599,7 +599,7 @@ export default function App() {
                     onUpdateCard={handleUpdateCard}
                     onDeleteCard={handleDeleteCard}
                     onEditCardClick={setActiveEditCard}
-                    isDraggable={videoSortMode === "custom"}
+                    isDraggable={true}
                     onDragAndDropCard={handleDragAndDropCard}
                     allTags={allTags}
                     onAddGlobalTag={handleAddGlobalTag}

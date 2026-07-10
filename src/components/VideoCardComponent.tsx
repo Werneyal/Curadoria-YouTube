@@ -11,7 +11,9 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  GripVertical
+  GripVertical,
+  Tag,
+  Copy
 } from "lucide-react";
 import { VideoCard } from "../types";
 import { CARD_COLORS, ColorOption } from "../utils";
@@ -28,6 +30,9 @@ interface VideoCardComponentProps {
   onDragEnd?: () => void;
   onDragOver?: (cardId: string) => void;
   onDropCard?: (draggedId: string, targetId: string) => void;
+  allTags?: string[];
+  onAddGlobalTag?: (tag: string) => void;
+  onDuplicateCard?: (cardId: string) => void;
 }
 
 export default function VideoCardComponent({
@@ -41,10 +46,15 @@ export default function VideoCardComponent({
   onDragEnd,
   onDragOver,
   onDropCard,
+  allTags = [],
+  onAddGlobalTag,
+  onDuplicateCard,
 }: VideoCardComponentProps) {
   const [showNotes, setShowNotes] = useState(false);
   const [notesText, setNotesText] = useState(card.notes);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [newTagInput, setNewTagInput] = useState("");
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -75,6 +85,33 @@ export default function VideoCardComponent({
     e.preventDefault();
     onUpdateCard({ ...card, notes: notesText });
     setShowNotes(false);
+  };
+
+  const handleToggleTag = (tag: string) => {
+    const currentTags = card.tags || [];
+    let updatedTags: string[];
+    if (currentTags.includes(tag)) {
+      updatedTags = currentTags.filter((t) => t !== tag);
+    } else {
+      updatedTags = [...currentTags, tag];
+    }
+    onUpdateCard({ ...card, tags: updatedTags });
+  };
+
+  const handleAddNewTagSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanTag = newTagInput.trim();
+    if (!cleanTag) return;
+
+    if (onAddGlobalTag) {
+      onAddGlobalTag(cleanTag);
+    }
+
+    const currentTags = card.tags || [];
+    if (!currentTags.includes(cleanTag)) {
+      onUpdateCard({ ...card, tags: [...currentTags, cleanTag] });
+    }
+    setNewTagInput("");
   };
 
   // Safe description truncation
@@ -223,22 +260,38 @@ export default function VideoCardComponent({
               </button>
             )}
           </p>
+
+          {/* Tags list */}
+          {card.tags && card.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {[...card.tags]
+                .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                .map((tag) => (
+                  <span 
+                    key={tag} 
+                    className="text-[9px] bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold px-1.5 py-0.5 rounded-md"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+            </div>
+          )}
         </div>
 
         {/* Interactive Features Toolbar (Merged Single-Row) */}
-        <div className="mt-auto pt-1.5 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-1.5">
+        <div className="mt-auto pt-1.5 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-1 px-1">
           {/* Stars for classification */}
           <div className="flex items-center">
             {[1, 2, 3, 4, 5].map((starValue) => (
               <button
                 key={starValue}
                 onClick={() => handleRating(starValue)}
-                className="p-0.5 hover:scale-115 transition-transform focus:outline-none cursor-pointer"
+                className="p-px hover:scale-110 transition-transform focus:outline-none cursor-pointer"
                 title={`Avaliar com ${starValue} estrela(s)`}
                 id={`btn-star-${card.id}-${starValue}`}
               >
                 <Star
-                  className={`h-3 w-3 transition-colors ${
+                  className={`h-2.5 w-2.5 transition-colors ${
                     starValue <= card.rating
                       ? "fill-amber-500 text-amber-500"
                       : "text-slate-300 dark:text-slate-600 hover:text-amber-400"
@@ -253,7 +306,7 @@ export default function VideoCardComponent({
             {/* Like heart */}
             <button
               onClick={handleLikeToggle}
-              className={`p-1 rounded-full transition-all duration-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer ${
+              className={`p-0.5 rounded-full transition-all duration-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer ${
                 card.isLiked ? "text-red-500 scale-110" : "text-slate-400 dark:text-slate-500 hover:text-red-500"
               }`}
               title={card.isLiked ? "Remover dos favoritos" : "Marcar como gostei"}
@@ -265,7 +318,7 @@ export default function VideoCardComponent({
             {/* Note trigger */}
             <button
               onClick={() => setShowNotes(!showNotes)}
-              className={`p-1 rounded-md transition-all cursor-pointer ${
+              className={`p-0.5 rounded-md transition-all cursor-pointer ${
                 showNotes || card.notes 
                   ? "bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white" 
                   : "text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
@@ -279,7 +332,7 @@ export default function VideoCardComponent({
             {/* Color picker trigger */}
             <button
               onClick={() => setShowColorPicker(!showColorPicker)}
-              className={`p-1 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer ${
+              className={`p-0.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer ${
                 showColorPicker ? "bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white" : ""
               }`}
               title="Mudar cor do card"
@@ -319,10 +372,93 @@ export default function VideoCardComponent({
               </>
             )}
 
+            {/* Tag manager trigger */}
+            <button
+              onClick={() => setShowTagManager(!showTagManager)}
+              className={`p-0.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer ${
+                showTagManager || (card.tags && card.tags.length > 0) ? "bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white" : ""
+              }`}
+              title="Gerenciar tags do vídeo"
+              id={`btn-tags-${card.id}`}
+            >
+              <Tag className="h-3 w-3" />
+            </button>
+
+            {/* Dropdown tag manager popup */}
+            {showTagManager && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowTagManager(false)}
+                />
+                <div className="absolute bottom-8 right-0 z-20 w-56 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-white/10 p-3 rounded-xl shadow-2xl flex flex-col gap-2">
+                  <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-white/5 pb-1 text-left">
+                    🏷️ Tags do Vídeo
+                  </div>
+                  
+                  {/* List of existing tags with checkboxes */}
+                  <div className="max-h-36 overflow-y-auto flex flex-col gap-1 pr-1 text-left">
+                    {allTags.length === 0 ? (
+                      <span className="text-[10px] text-slate-400 italic py-1">Nenhuma tag cadastrada.</span>
+                    ) : (
+                      [...allTags]
+                        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                        .map((tag) => {
+                          const isSelected = card.tags?.includes(tag) || false;
+                          return (
+                            <label 
+                              key={tag}
+                              className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-50 dark:hover:bg-white/5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer transition-colors"
+                            >
+                              <input 
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleTag(tag)}
+                                className="accent-red-500 rounded text-red-500 focus:ring-red-500 h-3.5 w-3.5"
+                              />
+                              <span className="truncate">#{tag}</span>
+                            </label>
+                          );
+                        })
+                    )}
+                  </div>
+
+                  {/* Add brand new tag input */}
+                  <form onSubmit={handleAddNewTagSubmit} className="flex gap-1 border-t border-slate-100 dark:border-white/5 pt-2 mt-1">
+                    <input 
+                      type="text"
+                      placeholder="Nova tag..."
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      className="flex-1 text-[10px] px-2 py-1 rounded border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    />
+                    <button 
+                      type="submit"
+                      className="bg-red-600 hover:bg-red-700 text-white font-semibold text-[10px] px-2 py-1 rounded transition-colors cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
+
+            {/* Duplicate button */}
+            {onDuplicateCard && (
+              <button
+                onClick={() => onDuplicateCard(card.id)}
+                className="p-0.5 text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-md transition-all cursor-pointer"
+                title="Duplicar card"
+                id={`btn-duplicate-${card.id}`}
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            )}
+
             {/* Edit button */}
             <button
               onClick={() => onEditClick(card)}
-              className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-md transition-all cursor-pointer"
+              className="p-0.5 text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-md transition-all cursor-pointer"
               title="Editar card"
               id={`btn-edit-${card.id}`}
             >
@@ -336,7 +472,7 @@ export default function VideoCardComponent({
                   onDeleteCard(card.id);
                 }
               }}
-              className="p-1 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-white/5 rounded-md transition-all cursor-pointer"
+              className="p-0.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-white/5 rounded-md transition-all cursor-pointer"
               title="Excluir card"
               id={`btn-delete-${card.id}`}
             >

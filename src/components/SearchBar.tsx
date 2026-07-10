@@ -13,6 +13,10 @@ interface SearchBarProps {
   filteredCardsCount: number;
   videoSortMode: "custom" | "auto";
   onVideoSortModeChange: (mode: "custom" | "auto") => void;
+  allTags: string[];
+  selectedTags: string[];
+  onSelectTag: (tag: string) => void;
+  onManageTagsClick?: () => void;
 }
 
 export default function SearchBar({
@@ -26,8 +30,12 @@ export default function SearchBar({
   filteredCardsCount,
   videoSortMode,
   onVideoSortModeChange,
+  allTags,
+  selectedTags,
+  onSelectTag,
+  onManageTagsClick,
 }: SearchBarProps) {
-  const hasActiveFilters = searchQuery !== "" || selectedGroupId !== "all";
+  const hasActiveFilters = searchQuery !== "" || selectedGroupId !== "all" || selectedTags.length > 0;
 
   return (
     <div className="w-full bg-white dark:bg-[#334155] border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-lg">
@@ -113,6 +121,51 @@ export default function SearchBar({
               <RefreshCw className="h-3.5 w-3.5" />
               <span>Limpar Filtros</span>
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* Tags Filter section */}
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-left">
+            Filtrar por Tags
+          </span>
+          {onManageTagsClick && (
+            <button
+              onClick={onManageTagsClick}
+              className="text-[10px] font-bold text-red-500 hover:text-red-600 dark:hover:text-red-400 uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+              id="btn-manage-tags-trigger"
+            >
+              ⚙️ Editar Tags
+            </button>
+          )}
+        </div>
+        {allTags.length === 0 ? (
+          <div className="text-left text-xs text-slate-400 dark:text-slate-500 italic ml-1">
+            Nenhuma tag cadastrada ainda. Clique em "Editar Tags" para criar uma.
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5 justify-start">
+            {[...allTags]
+              .sort((a, b) => a.localeCompare(b, "pt-BR"))
+              .map((tag) => {
+                const isSelected = selectedTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => onSelectTag(tag)}
+                    className={`text-[11px] px-2.5 py-1 rounded-md border transition-all cursor-pointer font-semibold ${
+                      isSelected
+                        ? "bg-red-600 border-red-600 text-white shadow-sm shadow-red-600/15"
+                        : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10"
+                    }`}
+                    id={`filter-tag-badge-${tag}`}
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
           </div>
         )}
       </div>

@@ -12,6 +12,7 @@ export interface VideoCard {
   notes: string;
   groupId: string;
   createdAt: number;
+  tags?: string[];
 }
 
 export interface Group {

@@ -27,6 +27,9 @@ interface GroupSectionProps {
   onEditCardClick: (card: VideoCard) => void;
   isDraggable?: boolean;
   onDragAndDropCard?: (draggedCardId: string, targetCardId: string | null, targetGroupId: string) => void;
+  allTags: string[];
+  onAddGlobalTag: (tag: string) => void;
+  onDuplicateCard: (cardId: string) => void;
 }
 
 export default function GroupSection({
@@ -43,6 +46,9 @@ export default function GroupSection({
   onEditCardClick,
   isDraggable = false,
   onDragAndDropCard,
+  allTags,
+  onAddGlobalTag,
+  onDuplicateCard,
 }: GroupSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSectionDragOver, setIsSectionDragOver] = useState(false);
@@ -224,6 +230,9 @@ export default function GroupSection({
                         onDragAndDropCard(draggedId, targetId, group.id);
                       }
                     }}
+                    allTags={allTags}
+                    onAddGlobalTag={onAddGlobalTag}
+                    onDuplicateCard={onDuplicateCard}
                   />
                 ))}
               </AnimatePresence>

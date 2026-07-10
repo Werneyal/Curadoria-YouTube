@@ -28,6 +28,7 @@ import EditCardModal from "./components/EditCardModal";
 import AddGroupModal from "./components/AddGroupModal";
 import EditGroupModal from "./components/EditGroupModal";
 import OrganizeGroupsModal from "./components/OrganizeGroupsModal";
+import ManageTagsModal from "./components/ManageTagsModal";
 
 export default function App() {
   // 1. Core State
@@ -37,6 +38,103 @@ export default function App() {
   // 2. Filter & Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // 2.5. Tags State
+  const [allTags, setAllTags] = useState<string[]>(() => {
+    const saved = localStorage.getItem("yt_curator_tags");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Erro ao carregar tags:", e);
+      }
+    }
+    return ["Tecnologia", "Tutorial", "Produtividade", "Review", "IA"];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("yt_curator_tags", JSON.stringify(allTags));
+  }, [allTags]);
+
+  const handleSelectTagFilter = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter((t) => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+
+  const handleAddGlobalTag = (tag: string) => {
+    const cleanTag = tag.trim();
+    if (cleanTag && !allTags.includes(cleanTag)) {
+      setAllTags([...allTags, cleanTag]);
+    }
+  };
+
+  const handleDeleteTag = (tagToDelete: string) => {
+    // 1. Remove from global list of tags
+    setAllTags(allTags.filter((t) => t !== tagToDelete));
+    
+    // 2. Remove from active selected filter tags
+    setSelectedTags(selectedTags.filter((t) => t !== tagToDelete));
+
+    // 3. Remove this tag from all video cards
+    const updatedCards = cards.map((card) => {
+      if (card.tags && card.tags.includes(tagToDelete)) {
+        return {
+          ...card,
+          tags: card.tags.filter((t) => t !== tagToDelete),
+        };
+      }
+      return card;
+    });
+    setCards(updatedCards);
+    saveState(groups, updatedCards);
+  };
+
+  const handleEditTag = (oldTag: string, newTag: string) => {
+    const cleanNewTag = newTag.trim();
+    if (!cleanNewTag || oldTag === cleanNewTag) return;
+
+    // 1. Rename inside the global list of tags (merge if newTag already exists)
+    let updatedTags: string[];
+    if (allTags.includes(cleanNewTag)) {
+      // If target tag already exists, just remove oldTag
+      updatedTags = allTags.filter((t) => t !== oldTag);
+    } else {
+      // Otherwise replace the oldTag with cleanNewTag
+      updatedTags = allTags.map((t) => (t === oldTag ? cleanNewTag : t));
+    }
+    setAllTags(updatedTags);
+
+    // 2. Rename inside active selected filter tags
+    if (selectedTags.includes(oldTag)) {
+      let updatedSelected: string[];
+      if (selectedTags.includes(cleanNewTag)) {
+        updatedSelected = selectedTags.filter((t) => t !== oldTag);
+      } else {
+        updatedSelected = selectedTags.map((t) => (t === oldTag ? cleanNewTag : t));
+      }
+      setSelectedTags(updatedSelected);
+    }
+
+    // 3. Rename inside all cards
+    const updatedCards = cards.map((card) => {
+      if (card.tags && card.tags.includes(oldTag)) {
+        let updatedCardTags = card.tags.map((t) => (t === oldTag ? cleanNewTag : t));
+        // Remove duplicates if any
+        updatedCardTags = Array.from(new Set(updatedCardTags));
+        return {
+          ...card,
+          tags: updatedCardTags,
+        };
+      }
+      return card;
+    });
+    setCards(updatedCards);
+    saveState(groups, updatedCards);
+  };
 
   // 3. Modal / Overlay States
   const [activeAddGroupId, setActiveAddGroupId] = useState<string | null>(null);
@@ -44,6 +142,7 @@ export default function App() {
   const [showAddGroupModal, setShowAddGroupModal] = useState(false);
   const [showOrganizeGroupsModal, setShowOrganizeGroupsModal] = useState(false);
   const [activeEditGroup, setActiveEditGroup] = useState<Group | null>(null);
+  const [showManageTagsModal, setShowManageTagsModal] = useState(false);
 
   // 3.5. Theme State
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -210,6 +309,25 @@ export default function App() {
     saveState(groups, updatedCards);
   };
 
+  const handleDuplicateCard = (cardId: string) => {
+    const cardToDuplicate = cards.find((c) => c.id === cardId);
+    if (!cardToDuplicate) return;
+
+    const duplicatedCard: VideoCard = {
+      ...cardToDuplicate,
+      id: "card_" + Math.random().toString(36).substring(2, 11),
+      title: `${cardToDuplicate.title} (Cópia)`,
+      createdAt: Date.now(),
+    };
+
+    const originalIndex = cards.findIndex((c) => c.id === cardId);
+    const updatedCards = [...cards];
+    updatedCards.splice(originalIndex + 1, 0, duplicatedCard);
+
+    setCards(updatedCards);
+    saveState(groups, updatedCards);
+  };
+
   const handleDragAndDropCard = (draggedCardId: string, targetCardId: string | null, targetGroupId: string) => {
     const cardToMove = cards.find((c) => c.id === draggedCardId);
     if (!cardToMove) return;
@@ -298,6 +416,15 @@ export default function App() {
       return false;
     }
 
+    // Tags filter (OR matches: show card if it has at least one of the selected tags)
+    if (selectedTags.length > 0) {
+      const cardTags = card.tags || [];
+      const hasMatchingTag = cardTags.some((tag) => selectedTags.includes(tag));
+      if (!hasMatchingTag) {
+        return false;
+      }
+    }
+
     // Text search filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
@@ -382,11 +509,16 @@ export default function App() {
           onClearFilters={() => {
             setSearchQuery("");
             setSelectedGroupId("all");
+            setSelectedTags([]);
           }}
           totalCardsCount={cards.length}
           filteredCardsCount={filteredCards.length}
           videoSortMode={videoSortMode}
           onVideoSortModeChange={setVideoSortMode}
+          allTags={allTags}
+          selectedTags={selectedTags}
+          onSelectTag={handleSelectTagFilter}
+          onManageTagsClick={() => setShowManageTagsModal(true)}
         />
 
         {/* Curation Groups & Video Cards Grid Layout */}
@@ -422,9 +554,9 @@ export default function App() {
                 if (selectedGroupId !== "all" && group.id !== selectedGroupId) {
                   return false;
                 }
-                // If there's an active text query, we only show groups that contain matching cards,
+                // If there's an active search query or tag filter, we only show groups that contain matching cards,
                 // so the screen is clean and relevant!
-                if (searchQuery.trim() !== "") {
+                if (searchQuery.trim() !== "" || selectedTags.length > 0) {
                   const hasMatchingCards = filteredCards.some((c) => c.groupId === group.id);
                   return hasMatchingCards;
                 }
@@ -462,13 +594,16 @@ export default function App() {
                     onEditCardClick={setActiveEditCard}
                     isDraggable={videoSortMode === "custom"}
                     onDragAndDropCard={handleDragAndDropCard}
+                    allTags={allTags}
+                    onAddGlobalTag={handleAddGlobalTag}
+                    onDuplicateCard={handleDuplicateCard}
                   />
                 );
               })
           )}
 
           {/* Feedback if search has active results, but no cards matched any group */}
-          {groups.length > 0 && filteredCards.length === 0 && (searchQuery.trim() !== "" || selectedGroupId !== "all") && (
+          {groups.length > 0 && filteredCards.length === 0 && (searchQuery.trim() !== "" || selectedGroupId !== "all" || selectedTags.length > 0) && (
             <div 
               className="flex flex-col items-center justify-center py-16 px-4 bg-white dark:bg-[#334155] border border-slate-200 dark:border-white/10 rounded-2xl text-center shadow-lg"
               id="search-no-results-box"
@@ -480,12 +615,13 @@ export default function App() {
                 Nenhum vídeo corresponde aos filtros
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm">
-                Tente ajustar os termos digitados ou troque o filtro de grupo para encontrar seus registros.
+                Tente ajustar os termos digitados, selecione outras tags ou troque o filtro de grupo.
               </p>
               <button
                 onClick={() => {
                   setSearchQuery("");
                   setSelectedGroupId("all");
+                  setSelectedTags([]);
                 }}
                 className="mt-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 font-semibold text-xs px-4 py-2 rounded-md transition-colors border border-slate-200 dark:border-white/10"
                 id="search-reset-all"
@@ -602,6 +738,17 @@ export default function App() {
           group={activeEditGroup}
           onClose={() => setActiveEditGroup(null)}
           onSave={handleEditGroupSave}
+        />
+      )}
+
+      {/* Modal: Manage Tags */}
+      {showManageTagsModal && (
+        <ManageTagsModal
+          allTags={allTags}
+          onClose={() => setShowManageTagsModal(false)}
+          onDeleteTag={handleDeleteTag}
+          onEditTag={handleEditTag}
+          onAddTag={handleAddGlobalTag}
         />
       )}
 

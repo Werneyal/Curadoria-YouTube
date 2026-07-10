@@ -298,9 +298,16 @@ export default function App() {
   };
 
   const handleUpdateCard = (updatedCard: VideoCard) => {
+    const originalCard = cards.find((c) => c.id === updatedCard.id);
     const updatedCards = cards.map((c) => (c.id === updatedCard.id ? updatedCard : c));
     setCards(updatedCards);
     saveState(groups, updatedCards);
+
+    // Se o status de gostei (favoritado) ou a classificação em estrelas mudou,
+    // forçamos o modo de ordenação automática para que o card se mova na hora.
+    if (originalCard && (originalCard.rating !== updatedCard.rating || originalCard.isLiked !== updatedCard.isLiked)) {
+      setVideoSortMode("auto");
+    }
   };
 
   const handleDeleteCard = (cardId: string) => {
